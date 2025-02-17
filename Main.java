@@ -24,7 +24,7 @@ public class Main {
     private static final int NEG_INFINITY = Integer.MIN_VALUE;
     public static int stateArray[][];
     private static final long TIME_LIMIT = 900;
-    private static final int MAX_DEPTH = 15; 
+    private static final int MAX_DEPTH = 14; 
     public static long startTime;
     
     
@@ -34,22 +34,27 @@ public class Main {
         return System.currentTimeMillis() - startTime >= TIME_LIMIT;
     }
     public static double miniMax(GameState gameState, int depth, double alpha, double beta, boolean maxPlayer) {
-        // Base case: evaluate terminal states first
+        // Eval terminal states first
         if (isGameOver(gameState)) {
             // Use actual score difference for terminal states
             int finalScoreDiff = gameState.state[gameState.player][6] - gameState.state[1 - gameState.player][6];
-            return finalScoreDiff > 0 ? 10000 + finalScoreDiff : -10000 + finalScoreDiff;
+            // Encourages faster wins since it will want higher
+            return finalScoreDiff > 0 ? 10000 + depth : -10000 + depth;
         }
 
-        // Check other termination conditions
+        // Check other  conditions
         if (isTimeUp() || depth == 0) {
             return heuristicFunction(gameState);
         }
 
         List<Integer> moves = possibleMoves(gameState);
         if (moves.isEmpty()) {
-            return heuristicFunction(gameState);
+            return gameState.state[gameState.player][6] - gameState.state[1 - gameState.player][6];
         }
+
+
+        // Sort moves, oh fancy lambda 
+        moves.sort((a, b) -> Integer.compare(gameState.state[gameState.player][b-1], gameState.state[gameState.player][a-1]));
 
         if (maxPlayer) {
             double maxEval = NEG_INFINITY;
@@ -84,18 +89,19 @@ public class Main {
         }
     }
 
-    // New method to simulate a move and return whether it results in an extra turn
+    //  method to simulate a move
     private static boolean simulateMove(GameState state, int move) {
-        int player = state.player;
-        Turn(player, move, state);
-        return state.player == player; // If player hasn't changed, we got an extra turn
+        int originalPlayer = state.player;
+        Turn(state.player, move, state);
+        return state.player == originalPlayer;
     }
 
     public static double heuristicFunction(GameState gameState) {
+        /* 
         int player = gameState.player;
         int opponent = 1 - player;
         
-        // Base score from store difference
+        //  store difference
         double score = (gameState.state[player][6] - gameState.state[opponent][6]) * 2.0;
         
         // Count total seeds on each side
@@ -106,11 +112,11 @@ public class Main {
             opponentSeeds += gameState.state[opponent][i];
         }
         
-        // Add weight for seeds on our side
+        
         score += playerSeeds * 0.5;
         score -= opponentSeeds * 0.5;
         
-        // Check for capture opportunities
+        // Check capture opportunities
         for (int i = 0; i < 6; i++) {
             // Reward positions that can lead to captures
             if (gameState.state[player][i] == 0 && gameState.state[opponent][i] > 0) {
@@ -122,7 +128,7 @@ public class Main {
                 }
             }
             
-            // Penalize vulnerable positions
+            // Penalize  positions
             if (gameState.state[player][i] > 0 && gameState.state[opponent][i] == 0) {
                 for (int j = 0; j < 6; j++) {
                     if (gameState.state[opponent][j] == (i - j + 1)) {
@@ -138,7 +144,8 @@ public class Main {
                 score += 3.0;
             }
         }
-        
+        */
+        double score = (gameState.state[gameState.player][6] - gameState.state[1-gameState.player][6]) * 2.0;
         return score;
     }
 
@@ -164,96 +171,14 @@ public class Main {
                 }
             }
         }
-        
         return bestMove;
     }
 
-/* 
-    public static int findBestMove(GameState gameState){
-        startTime = System.currentTimeMillis();
-        int bestMove = -INFINITY;  // Default to invalid move
-        double bestValue = -INFINITY;
-    
-        List<Integer> moveList = possibleMoves(gameState);
-        
-        //System.out.println("Possible Moves: " + moveList);
-        
-        
-    
-        for (int i : moveList){
-            GameState newState = new GameState(gameState.state, gameState.turn, gameState.player);
-            
-            // Apply the move before evaluation
-            Turn(newState.player, i, newState);
-    
-            double value = miniMax(newState, MAX_DEPTH, NEG_INFINITY, INFINITY, false);
-            //System.out.println("Value:" + value + " Move:" + i);
-    
-            // Pick the best move
-            if(value > bestValue || bestValue == -INFINITY){
-                bestValue = value;
-                bestMove = i;
-            }
-            if(isTimeUp()){
-                break;
-            }
-            
-            
-        }
-    
-        return bestMove;
-    }
-
-    
-    public static double miniMax(GameState gameState, int depth, double alpha, double beta, boolean maxPlayer) {
-        // Base case: Apply heuristic function at leaf nodes
-        if (isTimeUp() || depth == MAX_DEPTH || isGameOver(gameState)) {
-            if (isGameOver(gameState)) {
-                return gameState.state[gameState.player][6] > gameState.state[1 - gameState.player][6] ? INFINITY : NEG_INFINITY;
-            }
-            return heuristicFunction(gameState);
-        }
-    
-        List<Integer> moves = possibleMoves(gameState);
-    
-        // If no moves are possible, return heuristic (in case of terminal state)
-        if (moves.isEmpty()) {
-            return heuristicFunction(gameState);
-        }
-    
-        if (maxPlayer) {
-            double maxEval = NEG_INFINITY;
-            for (int i : moves) {
-                GameState newState = new GameState(gameState.state, gameState.turn, gameState.player);
-                Turn(newState.player, i, newState);
-                double val = miniMax(newState, depth + 1, alpha, beta, false);
-                maxEval = Math.max(val, maxEval);
-                alpha = Math.max(alpha, maxEval);
-                if (beta <= alpha) {
-                    break; // Alpha-beta pruning
-                }
-            }
-            return maxEval;
-        } else {
-            double minEval = INFINITY;
-            for (int i : moves) {
-                GameState newState = new GameState(gameState.state, gameState.turn, gameState.player);
-                Turn(newState.player, i, newState);
-                double val = miniMax(newState, depth + 1, alpha, beta, true);
-                minEval = Math.min(val, minEval);
-                beta = Math.min(beta, minEval);
-                if (beta <= alpha) {
-                    break; // Alpha-beta pruning
-                }
-            }
-            return minEval;
-        }
-    }
-    */
     
     public static List<Integer> possibleMoves(GameState gameState){
         List<Integer> moves = new ArrayList<>();
         GameState newState = new GameState(gameState.state, gameState.turn, gameState.player);
+        //printGameState(newState);
         for (int i = 0; i < 6; i++) {
             if(newState.state[newState.player][i] != 0){
                 moves.add(i+1);
@@ -261,6 +186,7 @@ public class Main {
         }
         return moves;
     }
+
     public static GameState StateParser(String line) {
         String[] parts = line.split(" ");
          
@@ -290,49 +216,67 @@ public class Main {
         return new GameState(result, turn, player);
         
     }
-    /* 
-    public static GameState StateParser(String line) {
-        // Split the input on <>
-        String[] parts = line.split("[<>]");
+
+    public static void Turn(int player, int pos, GameState gameState) {
+        int numSeeds = gameState.state[player][pos - 1]; // Pick up all seeds
+        int row = player;
+        boolean droppedInStore = false;
         
-        // Filter out empty strings
-        parts = java.util.Arrays.stream(parts)
-            .filter(s -> !s.trim().isEmpty())
-            .toArray(String[]::new);
-        
-        try {
-            // Get N from the second element (after "STATE") 
-            int N = Integer.parseInt(parts[1]);
-            
-            // Create the 2 x (N+1) array
-            int[][] result = new int[2][N + 1];
-            
-            // Fill player 1's positions
-            for (int i = 0; i < N; i++) {
-                result[0][i] = Integer.parseInt(parts[i + 2]);
+        // Empty the selected pit
+        gameState.state[player][pos - 1] = 0;
+        pos++; // Move to the next pit
+    
+        while (numSeeds > 0) {
+            if (pos <= 6) { // Regular pits
+                if (numSeeds == 1 && gameState.state[row][pos - 1] == 0 && row == player && gameState.state[1 - row][6 - pos] > 0) {
+                    // Capture condition: Last seed in an empty pit on player's side
+                    gameState.state[player][6] += gameState.state[1 - row][6-pos] + 1;
+                    gameState.state[1 - row][6 - pos] = 0;
+                } else {
+                    gameState.state[row][pos - 1]++;
+                }
+                pos++;
+            } else if (pos == 7) { // Store condition
+                if (row == player) { // Only drop in the player's own store
+                    gameState.state[row][6]++;
+                    if (numSeeds == 1) {
+                        droppedInStore = true; // Extra turn granted
+                    }
+                }
+                row = 1 - row; // Switch row
+                pos = 1; // Restart at the first pit in the opposite row
+            } else { // Opponent row transition
+                gameState.state[row][pos - 1]++;
+                pos++;
             }
-            
-            // Fill player 2's positions
-            for (int i = 0; i < N; i++) {
-                result[1][i] = Integer.parseInt(parts[i + N + 2]);
+            numSeeds--;
+        }
+    
+        // Check if the player's row is empty, in which case the opponent gets all remaining seeds
+        boolean emptyRow = true;
+        for (int i = 0; i < 6; i++) {
+            if (gameState.state[player][i] != 0) {
+                emptyRow = false;
+                break;
             }
-            
-            // Fill scores
-            result[0][N] = Integer.parseInt(parts[2 * N + 2]); // p1S
-            result[1][N] = Integer.parseInt(parts[2 * N + 3]); // p2S
-            
-            // Get turn and player from the last two elements
-            int turn = Integer.parseInt(parts[2 * N + 4]);
-            int player = Integer.parseInt(parts[2 * N + 5]);
-            
-            return new GameState(result, turn, player);
-            
-        } catch (Exception e) {
-            System.err.println("Error parsing input: " + e.getMessage());
-            return null;
+        }
+        if (emptyRow) {
+            for (int i = 0; i < 6; i++) {
+                gameState.state[1 - player][6] += gameState.state[1 - player][i];
+                gameState.state[1 - player][i] = 0;
+            }
+        }
+    
+        // Change turns unless the player landed in their store
+        if (!droppedInStore) {
+            gameState.player = 1 - player;
+            if (gameState.player == 0) {
+                gameState.turn++;
+            }
         }
     }
-    */
+    
+    /* 
     public static void Turn(int player, int pos, GameState gameState){
         int numSeeds = gameState.state[player][pos-1];
         int row = player;
@@ -344,7 +288,7 @@ public class Main {
         while(numSeeds > 0){
             // Different Conditions
                 if (pos < 7){
-                    if (numSeeds == 1 && gameState.state[row][pos-1] == 0 && row == player && gameState.state[1 - row][pos-1] != 0){
+                    if (numSeeds == 1 && gameState.state[row][pos-1] == 0 && gameState.state[1 - row][pos-1] != 0){
                         gameState.state[player][6] += gameState.state[1 - row][pos-1] + 1;
                         gameState.state[1 - row][pos-1] = 0;
                     }else{
@@ -401,42 +345,6 @@ public class Main {
         }
         
         
-        //System.out.println(gameState.player+ "player");
-        //System.out.println();
-        //System.out.println("New Turn");
-    }
-    
-/* 
-    public static double heuristicFunction(GameState gameState) {
-        int scoreDiff = gameState.state[gameState.player][6] - gameState.state[1 - gameState.player][6];
-        int extraTurnBonus = 0;
-        int captureBonus = 0;
-        int opponentCapturePenalty = 0;
-    
-        // Reward moves that lead to extra turns
-        for (int i = 0; i < 6; i++) {
-            if (gameState.state[gameState.player][i] == (6 - i)) { // Lands in store
-                extraTurnBonus += 3; 
-            }
-        }
-    
-        // Reward captures
-        for (int i = 0; i < 6; i++) {
-            if (gameState.state[gameState.player][i] == 1 && gameState.state[1 - gameState.player][i] > 0) { // Capture condition
-                captureBonus += gameState.state[1 - gameState.player][i] + 2; 
-            }
-        }
-    
-        // **NEW: Penalize board states where the opponent can easily capture**
-        for (int i = 0; i < 6; i++) {
-            if (gameState.state[1 - gameState.player][i] == 1 && gameState.state[gameState.player][i] > 0) { 
-                // If opponent has a single stone and can capture from player
-                opponentCapturePenalty += gameState.state[gameState.player][i] + 3;
-            }
-        }
-    
-        //return scoreDiff + 0.5 * extraTurnBonus + 0.7 * captureBonus - 0.7 * opponentCapturePenalty;
-        return scoreDiff;
     }
     */
 
@@ -447,7 +355,7 @@ public class Main {
     
         
             // Print current game state
-            printGameState(state);
+            //printGameState(state);
     
             // Check if the game is over
             
@@ -455,12 +363,14 @@ public class Main {
             //System.out.println("AI chooses move: " + bestMove);
             //Turn(state.player, bestMove, state);
             //System.out.println(state.player + " " + state.turn);
-            if(state.player == 1 && state.turn == 2){
+            if(state.player == 1 && (state.turn == 2 || state.turn ==3) ){
                 System.out.println("PIE");
             }else{
             System.out.println(bestMove);
             }
+            
             // Print updated game state
+            //Turn(state.player, bestMove, state);
             //printGameState(state);
         
                 // Check for game-ending conditions
@@ -522,14 +432,15 @@ public class Main {
     
     // Helper method to print the game state
     private static void printGameState(GameState gameState) {
-        //System.out.println("State Array:");
+        System.out.println("State Array:");
         for (int i = 0; i < gameState.state.length; i++) {
             for (int j = 0; j < gameState.state[i].length; j++) {
-                //System.out.print(gameState.state[i][j] + " ");
+                System.out.print(gameState.state[i][j] + " ");
             }
-            //System.out.println();
+            System.out.println();
         }
-        //System.out.println("Turn: " + gameState.turn);
-        //System.out.println("Player: " + gameState.player);
+        System.out.println("Turn: " + gameState.turn);
+        System.out.println("Player: " + gameState.player);
     }
+    
 }
